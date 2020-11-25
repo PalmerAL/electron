@@ -1332,6 +1332,10 @@ gfx::Rect NativeWindowViews::WindowBoundsToContentBounds(
 void NativeWindowViews::UpdateDraggableRegions(
     const std::vector<mojom::DraggableRegionPtr>& regions) {
   draggable_region_ = DraggableRegionsToSkRegion(regions);
+
+  for (NativeBrowserView* view : browser_views()) {
+    view->UpdateDraggableRegions(regions);
+  }
 }
 
 #if defined(OS_WIN)
@@ -1446,6 +1450,14 @@ views::View* NativeWindowViews::GetContentsView() {
 bool NativeWindowViews::ShouldDescendIntoChildForEventHandling(
     gfx::NativeView child,
     const gfx::Point& location) {
+  // App window should claim mouse events that fall within any BrowserViews'
+  // draggable region.
+  for (auto* view : browser_views()) {
+    auto* native_view = static_cast<NativeBrowserViewViews*>(view);
+    if (native_view->draggable_region()->contains(location.x(), location.y()))
+      return false;
+  }
+
   // App window should claim mouse events that fall within the draggable region.
   if (draggable_region() &&
       draggable_region()->contains(location.x(), location.y()))
